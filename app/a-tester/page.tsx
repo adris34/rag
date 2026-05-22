@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, X, Calendar, Globe, FileText, Link2 } from 'lucide-react';
+import { ArrowLeft, Plus, X, Calendar, Globe, FileText, Link2, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContentModal } from '@/app/components/ContentModal';
 

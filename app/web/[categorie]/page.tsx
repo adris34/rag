@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, X, Tag } from 'lucide-react';
+import { ArrowLeft, Plus, X, Tag, Calendar, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ContentModal } from '@/app/components/ContentModal';
 
