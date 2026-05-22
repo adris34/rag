@@ -30,8 +30,9 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-export default function CategorieContentPage({ params }: { params: { categorie: string } }) {
-  const categorie = decodeURIComponent(params.categorie);
+export default function CategorieContentPage({ params }: { params: Promise<{ categorie: string }> }) {
+  const { categorie: rawCategorie } = React.use(params);
+  const categorie = decodeURIComponent(rawCategorie);
   const style = CATEGORY_STYLES[categorie] ?? CATEGORY_STYLES['Publicité'];
 
   const [items, setItems] = useState<ContentItem[]>([]);
