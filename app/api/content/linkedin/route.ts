@@ -1,31 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { anthropic } from '@/lib/anthropic';
-
-async function fetchUrlContent(url: string): Promise<string> {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
-      },
-      signal: AbortSignal.timeout(8000),
-    });
-    const html = await res.text();
-    // Extract meaningful text: remove scripts/styles, keep visible text
-    const text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 3000);
-    return text;
-  } catch {
-    return '';
-  }
-}
+import { fetchAndParse } from '@/lib/fetch-content';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -54,13 +30,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'categorie requise' }, { status: 400 });
   }
 
-  // If URL provided, try to fetch page content to enrich Claude's analysis
-  let fetchedText = '';
+  let fetchedMarkdown = '';
+  let fetchedPlain = '';
+  let images: string[] = [];
+
   if (url_source) {
-    fetchedText = await fetchUrlContent(url_source);
+    const fetched = await fetchAndParse(url_source);
+    fetchedMarkdown = fetched.markdown;
+    fetchedPlain = fetched.plainText;
+    images = fetched.images;
   }
 
-  const textToAnalyze = contenu || fetchedText || url_source || '';
+  const textToAnalyze = contenu || fetchedPlain || url_source || '';
 
   let titre_auto = '';
   let resume_auto = '';
@@ -93,7 +74,9 @@ Réponds uniquement avec du JSON valide: {"titre": "...", "resume": "..."}`
   const { data, error } = await supabase
     .from('content_linkedin')
     .insert({
-      contenu: contenu || fetchedText || null,
+      contenu: contenu || fetchedPlain || null,
+      contenu_md: contenu || fetchedMarkdown || null,
+      images: images.length > 0 ? images : null,
       categorie,
       url_source: url_source || null,
       titre_auto,

@@ -1,30 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { anthropic } from '@/lib/anthropic';
-
-async function fetchUrlContent(url: string): Promise<string> {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
-      },
-      signal: AbortSignal.timeout(8000),
-    });
-    const html = await res.text();
-    const text = html
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 3000);
-    return text;
-  } catch {
-    return '';
-  }
-}
+import { fetchAndParse } from '@/lib/fetch-content';
 
 function detectSourceType(url?: string): string {
   if (!url) return 'autre';
@@ -52,12 +29,18 @@ export async function POST(req: NextRequest) {
 
   const source_type = detectSourceType(url_source);
 
-  let fetchedText = '';
+  let fetchedMarkdown = '';
+  let fetchedPlain = '';
+  let images: string[] = [];
+
   if (url_source) {
-    fetchedText = await fetchUrlContent(url_source);
+    const fetched = await fetchAndParse(url_source);
+    fetchedMarkdown = fetched.markdown;
+    fetchedPlain = fetched.plainText;
+    images = fetched.images;
   }
 
-  const textToAnalyze = contenu || fetchedText || url_source || '';
+  const textToAnalyze = contenu || fetchedPlain || url_source || '';
 
   let titre_auto = '';
   let resume_auto = '';
@@ -91,7 +74,9 @@ Réponds uniquement avec du JSON valide: {"titre": "...", "resume": "..."}`
     .from('content_a_tester')
     .insert({
       url_source: url_source || null,
-      contenu: contenu || fetchedText || null,
+      contenu: contenu || fetchedPlain || null,
+      contenu_md: contenu || fetchedMarkdown || null,
+      images: images.length > 0 ? images : null,
       source_type,
       titre_auto,
       resume_auto,

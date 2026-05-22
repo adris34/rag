@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, X, ExternalLink, Calendar, Globe, FileText, Link2 } from 'lucide-react';
+import { ArrowLeft, Plus, X, Calendar, Globe, FileText, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ContentModal } from '@/app/components/ContentModal';
 
 interface TesterItem {
   id: string;
   url_source: string;
   contenu: string;
+  contenu_md?: string;
+  images?: string[];
   source_type: string;
   titre_auto: string;
   resume_auto: string;
@@ -219,46 +222,16 @@ export default function ATesterPage() {
         </div>
       )}
 
-      {/* Detail modal */}
       {selected && (() => {
         const src = SOURCE_CONFIG[selected.source_type] ?? SOURCE_CONFIG.autre;
-        const Icon = src.icon;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] flex flex-col">
-              <div className={`bg-gradient-to-br ${src.gradient} p-6 rounded-t-2xl flex items-start justify-between`}>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Icon className="w-4 h-4 text-white/80" />
-                    <span className="text-xs font-bold text-white/80 uppercase tracking-wide">{src.label}</span>
-                  </div>
-                  <h2 className="text-xl font-bold text-white leading-snug">{selected.titre_auto}</h2>
-                  <p className="text-white/80 text-sm mt-1">{selected.resume_auto}</p>
-                </div>
-                <button onClick={() => setSelected(null)} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 ml-4 flex-shrink-0">
-                  <X className="w-5 h-5 text-white" />
-                </button>
-              </div>
-              <div className="p-6 overflow-y-auto space-y-4">
-                {selected.url_source && (
-                  <a href={selected.url_source} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                    <ExternalLink className="w-4 h-4" /> {selected.url_source}
-                  </a>
-                )}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {selected.tags?.map(tag => (
-                    <span key={tag} className={`text-xs px-2.5 py-1 rounded-full font-medium ${src.badge} ${src.badgeText}`}>{tag}</span>
-                  ))}
-                  <span className="text-xs text-slate-400 ml-auto">{formatDate(selected.created_at)}</span>
-                </div>
-                {selected.contenu && (
-                  <div className="bg-slate-50 rounded-xl p-4">
-                    <p className="text-sm text-slate-800 whitespace-pre-wrap">{selected.contenu}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <ContentModal
+            item={selected}
+            gradient={src.gradient}
+            badge={src.badge}
+            badgeText={src.badgeText}
+            onClose={() => setSelected(null)}
+          />
         );
       })()}
     </div>

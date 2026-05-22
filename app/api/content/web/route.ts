@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { anthropic } from '@/lib/anthropic';
+import { fetchAndParse } from '@/lib/fetch-content';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -26,25 +27,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'contenu ou url requis' }, { status: 400 });
   }
 
-  let fetchedText = '';
+  let fetchedMarkdown = '';
+  let fetchedPlain = '';
+  let images: string[] = [];
+
   if (url) {
-    try {
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0', 'Accept': 'text/html' },
-        signal: AbortSignal.timeout(8000),
-      });
-      const html = await res.text();
-      fetchedText = html
-        .replace(/<script[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[\s\S]*?<\/style>/gi, '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 3000);
-    } catch { /* ignore */ }
+    const fetched = await fetchAndParse(url);
+    fetchedMarkdown = fetched.markdown;
+    fetchedPlain = fetched.plainText;
+    images = fetched.images;
   }
 
-  const textToAnalyze = contenu || fetchedText || url || '';
+  const textToAnalyze = contenu || fetchedPlain || url || '';
+  const markdownContent = contenu || fetchedMarkdown || '';
 
   let titre_auto = '';
   let resume_auto = '';
@@ -59,7 +54,7 @@ export async function POST(req: NextRequest) {
 - "titre": un titre court et percutant (max 8 mots, en français)
 - "resume": un résumé de 1-2 phrases maximum (en français)
 
-${url ? `URL: ${url}\n` : ''}${textToAnalyze ? `Contenu: ${textToAnalyze.slice(0, 1500)}` : ''}
+${url ? `URL: ${url}\n` : ''}Contenu: ${textToAnalyze.slice(0, 1500)}
 
 Réponds uniquement avec du JSON valide: {"titre": "...", "resume": "..."}`
       }]
@@ -78,7 +73,9 @@ Réponds uniquement avec du JSON valide: {"titre": "...", "resume": "..."}`
     .from('content_web')
     .insert({
       url: url || null,
-      contenu: contenu || fetchedText || null,
+      contenu: contenu || fetchedPlain || null,
+      contenu_md: markdownContent || null,
+      images: images.length > 0 ? images : null,
       source: source || null,
       categorie: categorie || null,
       titre_auto,

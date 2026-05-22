@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, X, Tag, Calendar, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Plus, X, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ContentModal } from '@/app/components/ContentModal';
 
 interface WebItem {
   id: string;
   url: string;
   contenu: string;
+  contenu_md?: string;
+  images?: string[];
   source: string;
   titre_auto: string;
   resume_auto: string;
@@ -197,37 +200,13 @@ export default function WebCategoriePage({ params }: { params: Promise<{ categor
       )}
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] flex flex-col">
-            <div className={`bg-gradient-to-br ${style.gradient} p-6 rounded-t-2xl flex items-start justify-between`}>
-              <div>
-                <h2 className="text-xl font-bold text-white leading-snug">{selected.titre_auto || selected.source}</h2>
-                <p className="text-white/80 text-sm mt-1">{selected.resume_auto}</p>
-              </div>
-              <button onClick={() => setSelected(null)} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 ml-4 flex-shrink-0">
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto space-y-4">
-              {selected.url && (
-                <a href={selected.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                  <ExternalLink className="w-4 h-4" /> {selected.url}
-                </a>
-              )}
-              <div className="flex items-center gap-2 flex-wrap">
-                {selected.tags?.map(tag => (
-                  <span key={tag} className={`text-xs px-2.5 py-1 rounded-full font-medium ${style.badge} ${style.badgeText}`}>{tag}</span>
-                ))}
-                <span className="text-xs text-slate-400 ml-auto">{formatDate(selected.created_at)}</span>
-              </div>
-              {selected.contenu && (
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-sm text-slate-800 whitespace-pre-wrap">{selected.contenu}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <ContentModal
+          item={selected}
+          gradient={style.gradient}
+          badge={style.badge}
+          badgeText={style.badgeText}
+          onClose={() => setSelected(null)}
+        />
       )}
     </div>
   );
