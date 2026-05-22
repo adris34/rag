@@ -1,252 +1,66 @@
-'use client';
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, X, ExternalLink, Calendar } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ChevronRight, Folder, ArrowLeft } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
-interface WebItem {
-  id: string;
-  url: string;
-  contenu: string;
-  source: string;
-  titre_auto: string;
-  resume_auto: string;
-  tags: string[];
-  created_at: string;
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-const GRADIENTS = [
-  'from-teal-400 to-emerald-600',
-  'from-cyan-400 to-blue-600',
-  'from-green-400 to-teal-600',
-  'from-emerald-400 to-cyan-600',
+const CATEGORIES = [
+  { slug: 'Publicité',  label: 'Publicité',  gradient: 'from-blue-400 to-blue-600',    light: 'bg-blue-50',    text: 'text-blue-700' },
+  { slug: 'E-commerce', label: 'E-commerce', gradient: 'from-emerald-400 to-emerald-600', light: 'bg-emerald-50', text: 'text-emerald-700' },
+  { slug: 'IA',         label: 'IA',         gradient: 'from-violet-400 to-violet-600',  light: 'bg-violet-50',  text: 'text-violet-700' },
+  { slug: 'Claude',     label: 'Claude',     gradient: 'from-orange-400 to-orange-600',  light: 'bg-orange-50',  text: 'text-orange-700' },
 ];
 
-export default function WebContentPage() {
-  const [items, setItems] = useState<WebItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [selected, setSelected] = useState<WebItem | null>(null);
-  const [form, setForm] = useState({ url: '', contenu: '', source: '', tags: '' });
-  const [saving, setSaving] = useState(false);
+async function getCategoryCounts() {
+  const { data } = await supabase
+    .from('content_web')
+    .select('categorie');
 
-  async function load() {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/content/web');
-      const data = await res.json();
-      setItems(Array.isArray(data) ? data : []);
-    } catch { setItems([]); }
-    setLoading(false);
+  const counts: Record<string, number> = {};
+  for (const row of data ?? []) {
+    if (row.categorie) counts[row.categorie] = (counts[row.categorie] ?? 0) + 1;
   }
+  return counts;
+}
 
-  useEffect(() => { load(); }, []);
-
-  async function handleAdd(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    await fetch('/api/content/web', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: form.url || undefined,
-        contenu: form.contenu || undefined,
-        source: form.source || undefined,
-        tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-      }),
-    });
-    setSaving(false);
-    setShowModal(false);
-    setForm({ url: '', contenu: '', source: '', tags: '' });
-    load();
-  }
+export default async function WebContentPage() {
+  let counts: Record<string, number> = {};
+  try { counts = await getCategoryCounts(); } catch { /* Supabase not configured */ }
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link href="/linkedin" className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
-            <ArrowLeft className="w-5 h-5 text-slate-500" />
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-slate-900">Web</h1>
-            <p className="text-slate-500 mt-1">{items.length} ressource{items.length !== 1 ? 's' : ''} sauvegardée{items.length !== 1 ? 's' : ''}</p>
-          </div>
+      <div className="flex items-center gap-3">
+        <Link href="/" className="p-2 rounded-xl hover:bg-slate-100 transition-colors">
+          <ArrowLeft className="w-5 h-5 text-slate-500" />
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Web</h1>
+          <p className="text-slate-500 mt-1">Ressources web organisées par thématique</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Ajouter
-        </button>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="glass-card rounded-2xl overflow-hidden animate-pulse">
-              <div className="h-24 bg-slate-200" />
-              <div className="p-5 space-y-2">
-                <div className="h-4 bg-slate-200 rounded w-3/4" />
-                <div className="h-3 bg-slate-100 rounded w-full" />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : items.length === 0 ? (
-        <div className="glass-card rounded-2xl p-16 flex flex-col items-center justify-center text-slate-400 space-y-3">
-          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
-            <Plus className="w-8 h-8" />
-          </div>
-          <p className="font-semibold">Aucune ressource web enregistrée</p>
-          <p className="text-sm">Ajoutez des articles, études ou outils trouvés en ligne.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {items.map((item, i) => {
-            const grad = GRADIENTS[i % GRADIENTS.length];
-            return (
-              <button
-                key={item.id}
-                onClick={() => setSelected(item)}
-                className="glass-card rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1 text-left group"
-              >
-                <div className={`bg-gradient-to-br ${grad} p-5 flex items-center justify-between`}>
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/20 text-white truncate max-w-[160px]">
-                    {item.source || new URL(item.url || 'https://web').hostname}
-                  </span>
-                  {item.url && <ExternalLink className="w-4 h-4 text-white/70" />}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {CATEGORIES.map((cat) => {
+          const count = counts[cat.slug] ?? 0;
+          return (
+            <Link key={cat.slug} href={`/web/${encodeURIComponent(cat.slug)}`} className="group block">
+              <div className="glass-card rounded-2xl overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+                <div className={`bg-gradient-to-br ${cat.gradient} p-6 flex items-center justify-center`}>
+                  <Folder className="w-12 h-12 text-white/90" />
                 </div>
-                <div className="p-5 space-y-2">
-                  <h3 className="font-bold text-slate-900 leading-snug line-clamp-2">
-                    {item.titre_auto || item.source || 'Ressource web'}
-                  </h3>
-                  <p className="text-sm text-slate-500 line-clamp-2">
-                    {item.resume_auto || item.contenu?.slice(0, 100)}
-                  </p>
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="flex gap-1 flex-wrap">
-                      {item.tags?.slice(0, 2).map(tag => (
-                        <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">{tag}</span>
-                      ))}
-                    </div>
-                    <span className="flex items-center gap-1 text-xs text-slate-400">
-                      <Calendar className="w-3 h-3" />
-                      {formatDate(item.created_at)}
-                    </span>
+                <div className="p-5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-slate-900 text-lg">{cat.label}</h3>
+                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Add modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-slate-900">Ajouter une ressource web</h2>
-              <button onClick={() => setShowModal(false)} className="p-2 rounded-xl hover:bg-slate-100">
-                <X className="w-5 h-5 text-slate-500" />
-              </button>
-            </div>
-            <form onSubmit={handleAdd} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">URL</label>
-                <input
-                  type="url"
-                  value={form.url}
-                  onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
-                  placeholder="https://..."
-                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Contenu / Notes</label>
-                <textarea
-                  rows={4}
-                  value={form.contenu}
-                  onChange={e => setForm(f => ({ ...f, contenu: e.target.value }))}
-                  placeholder="Résumé ou extrait de l'article..."
-                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Source</label>
-                  <input
-                    type="text"
-                    value={form.source}
-                    onChange={e => setForm(f => ({ ...f, source: e.target.value }))}
-                    placeholder="LinkedIn, Twitter..."
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">Tags</label>
-                  <input
-                    type="text"
-                    value={form.tags}
-                    onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
-                    placeholder="article, étude"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
+                  <span className={`inline-block mt-2 text-xs font-semibold px-2.5 py-1 rounded-full ${cat.light} ${cat.text}`}>
+                    {count} élément{count !== 1 ? 's' : ''}
+                  </span>
                 </div>
               </div>
-              <p className="text-xs text-slate-400">Claude va générer un titre et résumé automatiquement.</p>
-              <button
-                type="submit"
-                disabled={saving || (!form.url && !form.contenu)}
-                className={cn('btn-primary w-full flex items-center justify-center gap-2', saving && 'opacity-60')}
-              >
-                {saving ? (
-                  <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Analyse en cours...</>
-                ) : 'Enregistrer'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Detail modal */}
-      {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[80vh] flex flex-col">
-            <div className="bg-gradient-to-br from-teal-400 to-emerald-600 p-6 rounded-t-2xl flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-bold text-white leading-snug">{selected.titre_auto || selected.source}</h2>
-                <p className="text-white/80 text-sm mt-1">{selected.resume_auto}</p>
-              </div>
-              <button onClick={() => setSelected(null)} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 ml-4 flex-shrink-0">
-                <X className="w-5 h-5 text-white" />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto space-y-4">
-              {selected.url && (
-                <a href={selected.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                  <ExternalLink className="w-4 h-4" /> {selected.url}
-                </a>
-              )}
-              <div className="flex items-center gap-2 flex-wrap">
-                {selected.tags?.map(tag => (
-                  <span key={tag} className="text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">{tag}</span>
-                ))}
-                <span className="text-xs text-slate-400 ml-auto">{formatDate(selected.created_at)}</span>
-              </div>
-              {selected.contenu && (
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-sm text-slate-800 whitespace-pre-wrap">{selected.contenu}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
